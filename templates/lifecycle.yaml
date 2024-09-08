@@ -1,0 +1,82 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-labeler
+  namespace: lifecycle
+spec:
+  selector:
+    matchLabels:
+      name: pod-labeler
+  template:
+    metadata:
+      labels:
+        name: pod-labeler
+    spec:
+      serviceAccountName: pod-labeler
+      containers:
+      - name: pod-labeler
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          while true; do
+            # Get all nodes with their annotations and labels
+            kubectl get nodes -o json | jq -r '
+              .items[] | 
+              {
+                nodeName: .metadata.name, 
+                instanceId: (.metadata.annotations."csi.volume.kubernetes.io/nodeid" | fromjson | ."ebs.csi.aws.com")
+              } | 
+              select(.instanceId != null) | 
+              "\(.nodeName) \(.instanceId)"' | \
+            while read -r nodeName instanceId; do
+              # Apply the node-id label to the node
+              kubectl label node "$nodeName" node-id="$instanceId" --overwrite
+              
+              # Get all pods and check if the node's hostname matches the pod's nodeName
+              kubectl get pods -n s3 -o json | jq -r --arg nodeName "$nodeName" --arg instanceId "$instanceId" '
+                .items[] |
+                select(.spec.nodeName == $nodeName) |
+                [.metadata.namespace, .metadata.name] | @tsv' | \
+              while read -r namespace pod_name; do
+                # Apply the node-id label to the matching pods
+                kubectl label pod -n "$namespace" "$pod_name" node-id="$instanceId" --overwrite
+
+                # Inject the node-id into a file in the pod
+                kubectl exec -n "$namespace" "$pod_name" -- sh -c "echo $instanceId > /tmp/node-id"
+              done
+            done
+            sleep 60
+          done
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-labeler
+  namespace: lifecycle
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-labeler
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/exec"]
+  verbs: ["get", "list", "update", "patch", "create"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pod-labeler
+subjects:
+- kind: ServiceAccount
+  name: pod-labeler
+  namespace: lifecycle
+roleRef:
+  kind: ClusterRole
+  name: pod-labeler
+  apiGroup: rbac.authorization.k8s.io

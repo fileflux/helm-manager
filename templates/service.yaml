@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "s3manager.fullname" . }}-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "s3manager.labels" . | nindent 4 }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "s3.lokesh.cloud"
+    {{- $configMap := lookup "v1" "ConfigMap" "s3" "ssl" -}}
+    {{- if $configMap }}
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "{{ $configMap.data.acm_certificate_arn }}"
+    {{- else }}
+    {{- end }}
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/teraws-load-balancer-ssl-ports: "443"
+spec:
+  type: LoadBalancer
+  selector:
+      {{- include "s3manager.selectorLabels" . | nindent 6 }}
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: {{ .Values.service.targetPort | default 5000 }}
+    - protocol: TCP
+      port: 443
+      name: https
+      targetPort: {{ .Values.service.targetPort | default 5000 }}
