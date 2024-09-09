@@ -26,13 +26,30 @@ The FileFlux Manager Helm chart consists of the following components:
 
 The following table lists the configurable parameters of the s3manager chart and their default values.
 
-| Parameter | Description | Default |
-| --------- | ----------- | ------- |
-| `replicaCount` | Number of replicas for the deployment | `1` |
-| `namespace` | Kubernetes namespace where the chart is deployed | `s3` |
-| `image.repository` | Image repository for the s3manager app | `chlokesh1306/s3manager` |
-| `serviceAccount.create` | Whether a service account should be created | `true` |
-| `serviceAccount.name` | Service account name | `db-access` |
+| Key                               | Default Value                                                    | Description                                                        |
+|------------------------------------|------------------------------------------------------------------|--------------------------------------------------------------------|
+| `replicaCount`                     | `1`                                                              | Number of replicas for the deployment                              |
+| `namespace`                        | `s3`                                                             | Namespace for the deployment                                       |
+| `image.repository`                 | `chlokesh1306/s3manager`                                          | Docker image repository for the manager                            |
+| `serviceAccountName`               | `db-access`                                                      | Name of the service account                                        |
+| `serviceAccount.create`            | `True`                                                           | Specifies whether a service account should be created              |
+| `serviceAccount.automount`         | `True`                                                           | Specifies whether to automount service account                     |
+| `service.type`                     | `ClusterIP`                                                      | Kubernetes service type                                            |
+| `service.port`                     | `8080`                                                           | Port for the service                                               |
+| `resources.limits.cpu`             | `500m`                                                           | CPU resource limit                                                 |
+| `resources.limits.memory`          | `512Mi`                                                          | Memory resource limit                                              |
+| `resources.requests.cpu`           | `250m`                                                           | CPU resource request                                               |
+| `resources.requests.memory`        | `256Mi`                                                          | Memory resource request                                            |
+| `livenessProbe.initialDelaySeconds`| `30`                                                             | Initial delay before liveness probe                                |
+| `livenessProbe.periodSeconds`      | `10`                                                             | Period between liveness probes                                     |
+| `readinessProbe.initialDelaySeconds`| `30`                                                             | Initial delay before readiness probe                               |
+| `hpa.enabled`                      | `True`                                                           | Enable Horizontal Pod Autoscaler                                   |
+| `hpa.minReplicas`                  | `3`                                                              | Minimum number of replicas                                         |
+| `hpa.maxReplicas`                  | `5`                                                              | Maximum number of replicas                                         |
+| `hpa.targetCPUUtilizationPercentage`| `80`                                                             | Target CPU utilization for HPA                                     |
+| `volumes[0].name`                  | `secrets-store-inline`                                            | Name of the secrets store inline volume                            |
+| `volumeMounts[0].name`             | `secrets-store-inline`                                            | Name of the secrets store inline volume mount                      |
+| `volumeMounts[0].mountPath`        | `/mnt/secrets-store`                                             | Mount path for the secrets store inline volume                     |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
